@@ -112,12 +112,21 @@ end
 % Display figure
 figure(1)
 hold on
+
+% Plot lines
+for i = 1:size(results_mean,2)
+    plot(primary_vals,results_mean(:,i), ...
+        line_styles{i}, ...
+        Color=line_colors{i}, ...
+        LineWidth=line_val, ...
+        MarkerSize=mark_val)
+end
+
+% Give bounding boxes
 for i = 1:size(results_mean,2)
 
     x_fill = [primary_vals,fliplr(primary_vals)];
     y_fill = [results_min(:,i).', fliplr(results_max(:,i).')];
-
-    % fill(x_fill, y_fill, line_colors{i}, 'FaceAlpha', 0.2, 'EdgeColor', 'none')
 
     % Convert hex color string to RGB
     baseColorHex = char(line_colors{i}); % this is a cell string, e.g., "#336699"
@@ -131,12 +140,8 @@ for i = 1:size(results_mean,2)
     fill(x_fill, y_fill, lightRGB, ...
         'FaceAlpha', 0.2, 'EdgeColor', 'none');
 
-    plot(primary_vals,results_mean(:,i), ...
-        line_styles{i}, ...
-        Color=line_colors{i}, ...
-        LineWidth=line_val, ...
-        MarkerSize=mark_val)
 end
+
 if default_parameters.dataset == "Human"
     ylim_vec = [0.9 1];
     % ylim_vec = [0.7 1];

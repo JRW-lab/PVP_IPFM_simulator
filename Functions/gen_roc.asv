@@ -74,7 +74,7 @@ for primvar_sel = 1:length(primary_vals)
 
         % Load data from DB
         [~,paramHash] = jsonencode_sorted(params_inst);
-        sim_result = T(string(T.param_hash) == paramHash, :);
+        DB_data = T(string(T.param_hash) == paramHash, :);
 
         % Select data to extract
         spec_vals = zeros(size(sim_result,1),1);
@@ -87,8 +87,20 @@ for primvar_sel = 1:length(primary_vals)
         end
 
         % Select data to extract
-        spec_mat(primvar_sel,sel) = mean(spec_vals(~isnan(spec_vals)));
-        sens_mat(primvar_sel,sel) = mean(sens_vals(~isnan(sens_vals)));
+        results_inst = jsondecode(DB_data.metrics{1});
+        spec_val = mean(sens_vals(~isnan(s_vals)));
+        sens_val = mean(spec_vals(~isnan(sens_vals)));
+
+        if isempty(spec_val)
+            spec_mat(primvar_sel,sel) = NaN;
+        else
+            spec_mat(primvar_sel,sel) = spec_val;
+        end
+        if isempty(sens_val)
+            sens_mat(primvar_sel,sel) = NaN;
+        else
+            sens_mat(primvar_sel,sel) = sens_val;
+        end
 
     end
 

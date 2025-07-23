@@ -15,7 +15,7 @@ save_data.save_excel = true;
 save_data.save_mysql = false;
 create_database_tables = false;
 dbname     = 'med_database';
-table_name = "lrm_results_v3";
+table_name = "lrm_results";
 
 % Introduce, set up connection to MySQL server
 addpath(fullfile(pwd, 'Common Functions'));
@@ -364,7 +364,7 @@ switch data_view
     case "roc"
         primary_var = "probability_cutoff";
         roc_step = 0.1 / (2^roc_res);
-        primary_vals = roc_step:roc_step:(1-roc_roc_stepes);
+        primary_vals = roc_step:roc_step:(1-roc_step);
     case "table"
         primary_var = "probability_cutoff";
         primary_vals = 0.5;

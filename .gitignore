@@ -3,3 +3,6 @@ Figures/
 Data/
 hide/
 Models/
+
+# Ignore conversion code
+test.m
