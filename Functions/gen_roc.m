@@ -82,8 +82,16 @@ for primvar_sel = 1:length(primary_vals)
         for i = 1:size(sim_result,1)
             metrics_loaded = jsondecode(sim_result.metrics{i});
             level_view = figure_data.level_view;
-            spec_vals(i) = metrics_loaded.(level_view).spec;
-            sens_vals(i) = metrics_loaded.(level_view).sens;
+            try
+                spec_vals(i) = metrics_loaded.(level_view).spec;
+            catch
+                spec_vals(i) = NaN;
+            end
+            try
+                sens_vals(i) = metrics_loaded.(level_view).sens;
+            catch
+                sens_vals(i) = NaN;
+            end
         end
 
         % Select data to extract

@@ -4,5 +4,5 @@ Data/
 hide/
 Models/
 
-# Ignore conversion code
-test.m
+# Ignore pilot pig studies
+MAIN_pilot_pig.m
