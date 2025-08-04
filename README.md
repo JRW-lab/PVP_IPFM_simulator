@@ -22,4 +22,4 @@ In MAIN_model_training.m, there is a large section named Configurations. There y
 ROC curves are a measure of the estimator's ability to balance false positives from false negatives, and is reflected in a plot of Sensitivity vs. (1 - Specificity).
 
 ## Further Questions
-For any questions please contact jrwimer@uark.edu or visit [my website](jrw-lab.github.io). 
+For any questions please contact jrwimer@uark.edu or visit [my website](https://jrw-lab.github.io). 
