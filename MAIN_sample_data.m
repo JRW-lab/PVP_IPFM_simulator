@@ -12,7 +12,7 @@ data_path = "Data";
 figures_path = "Figures";
 
 % Controls
-profile_sel = 4;
+profile_sel = 1;
 line_val = 2;
 mark_val = 10;
 font_val = 16;
@@ -268,9 +268,14 @@ for j = 1:length(signal_sel)
 
         % Plot pdf data
         datavec_sel = block(:,index);
-        [f, xi] = ksdensity(datavec_sel); % Estimate PDF using kernel density estimation
-        indices = find(xi >= 0);
-        plot(xi(indices), f(indices)./trapz(xi(indices),f(indices)),Color=linecolor,linewidth=line_val,LineStyle=linestyle);
+        [f, xi] = ksdensity(datavec_sel, 'Support', 'positive'); % Estimate PDF using kernel density estimation
+        indices = xi >= 0;
+        xi = xi(indices);
+        f = f(indices);
+        f = f ./ trapz(xi, f);
+        plot(xi, f, Color=linecolor,linewidth=line_val,LineStyle=linestyle);
+
+        1;
 
     end
 end

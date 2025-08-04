@@ -8,8 +8,8 @@ font_val = 16;
 xlabel_name = "1 - Specificity";
 ylabel_name = "Sensitivity";
 loc = "southeast";
-xlim_vec = [0 0.25];
-ylim_vec = [0.75 1];
+xlim_vec = [0 0.2];
+ylim_vec = [0.8 1];
 
 % Load data from DB and set new frame count
 switch save_data.priority
