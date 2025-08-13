@@ -5,4 +5,4 @@ hide/
 Models/
 
 # Ignore pilot pig studies
-MAIN_pilot_pig.m
+MAIN_pig_trials.m

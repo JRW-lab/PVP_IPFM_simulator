@@ -1,11 +1,12 @@
-function gen_figure_v2(save_data,conn,table_name,default_parameters,configs,figure_data)
+function gen_figure_v2(save_data,conn,table_name,result_parameters_hashes,line_configs,figure_data)
 
-% Figure settings
+% Settings
 render_title = false;
 figures_folder = 'Figures';
 line_val = 2;
 mark_val = 10;
 font_val = 16;
+ylim_vec = [0.5 1];
 
 % Load data from DB and set new frame count
 switch save_data.priority
@@ -40,43 +41,23 @@ legend_vec = figure_data.legend_vec;
 line_styles = figure_data.line_styles;
 line_colors = figure_data.line_colors;
 save_sel = figure_data.save_sel;
+level_view = figure_data.level_view;
 
-% Load loop
-var_names = fieldnames(default_parameters);
-results_mean = zeros(length(primary_vals),length(configs));
-results_min = zeros(length(primary_vals),length(configs));
-results_max = zeros(length(primary_vals),length(configs));
+% Go through each settings profile
+results_mean = zeros(length(primary_vals),length(line_configs));
+results_min = zeros(length(primary_vals),length(line_configs));
+results_max = zeros(length(primary_vals),length(line_configs));
 for primvar_sel = 1:length(primary_vals)
+    for sel = 1:length(line_configs)
 
-    % Set primary variable
-    primval_sel = primary_vals(primvar_sel);
-
-    % Go through each settings profile
-    for sel = 1:length(configs)
-
-        % Populate parameters from configs or default_parameters
-        params_inst = struct();
-        for var_sel = 1:length(var_names)
-            var_name = var_names{var_sel};
-            if isfield(configs{sel}, var_name)
-                value = configs{sel}.(var_name);
-            elseif ~strcmp(var_name, primary_var)
-                value = default_parameters.(var_name);
-            else
-                value = primval_sel;
-            end
-            params_inst.(var_name) = value;
-        end
-
-        % Load data from DB
-        [~,paramHash] = jsonencode_sorted(params_inst);
+        % Load data from parameter hash
+        paramHash = result_parameters_hashes(primvar_sel,sel);
         sim_result = T(string(T.param_hash) == paramHash, :);
 
         % Select data to extract
         result_vals = zeros(size(sim_result,1),1);
         for i = 1:size(sim_result,1)
             metrics_loaded = jsondecode(sim_result.metrics{i});
-            level_view = figure_data.level_view;
             result_vals(i) = metrics_loaded.(level_view).(data_type);
         end
 
@@ -142,12 +123,6 @@ for i = 1:size(results_mean,2)
 
 end
 
-if default_parameters.dataset == "Human"
-    ylim_vec = [0.9 1];
-    % ylim_vec = [0.7 1];
-else
-    ylim_vec = [0.6 1];
-end
 ylabel("Model Accuracy")
 % loc = "southwest";
 loc = "southeast";

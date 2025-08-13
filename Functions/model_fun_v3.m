@@ -1,11 +1,7 @@
-function model_fun_v3(save_data,conn,table_name,parameters,iter)
-
-% Function setup
-[~,paramHash] = jsonencode_sorted(parameters);
+function model_fun_v3(save_data,conn,table_name,parameters,paramHash,iter)
 
 % Settings
 load_path = "Models/";
-signal_type = "PVP";
 training_percentage = 0.7;
 cv_spec = 5;
 sample_rate = 1000;
@@ -49,36 +45,22 @@ end
 % Run if new frames are needed
 if run_flag
 
-    % Import parameters
-    dataset = parameters.dataset;
-    signal_sel = parameters.signal_sel;
-    group_type = parameters.group_type;
-    type_sel = parameters.type_sel;
-    group_category = parameters.group_category;
-    null_group = parameters.null_group;
-    hypo_group = parameters.hypo_group;
-    group_value = parameters.group_value;
-    null_val = parameters.null_val;
-    hypo_val = parameters.hypo_val;
-    exclude_patients = parameters.exclude_patients;
     window_duration = parameters.window_duration;
     frequency_limit = parameters.frequency_limit;
     alpha = parameters.alpha;
     probability_cutoff = parameters.probability_cutoff;
-    testing_type = parameters.testing_type;
+    training_type = parameters.training_type;
     tshift = parameters.tshift;
 
     % Load dataset
-    data = load_dataset(dataset,group_type,type_sel,group_category,null_group,hypo_group,group_value,null_val,hypo_val,signal_type,signal_sel,exclude_patients);
-    data_null = data.null;
-    data_hypo = data.hypo;
-    data_master = [data_null; data_hypo];
+    data = load_dataset(parameters);
+    data_master = vertcat(data.signals{:});
 
     % Set parameters
-    if testing_type == "patient"
+    if training_type == "patient"
         single_patient_testing = true;
         patients_tested = length(data_master);
-    elseif testing_type == "percentage"
+    elseif training_type == "percentage"
         single_patient_testing = false;
         patients_tested = 1;
     else
@@ -86,18 +68,28 @@ if run_flag
     end
 
     % Category setup
-    resu_patients = 1:length(data_null);
-    hypo_patients = (length(data_null)+1):length(data_master);
-    Yi = NaN * ones(length(data_master),1);
-    Yi(resu_patients) = 0;
-    Yi(hypo_patients) = 1;
+    len_signals = cellfun(@numel, data.signals);
+    Yi = zeros(sum(len_signals), 1);
+    idx = 1;
+    for j = 1:length(len_signals)
+        Yi(idx:idx+len_signals(j)-1) = j;
+        idx = idx + len_signals(j);
+    end
+    [~, ~, Yi] = unique(Yi, 'stable');
+    classes = unique(Yi);
+    Yi = Yi - 1;
+    if length(unique(Yi)) > 2
+        model_type = "ordinal";
+    else
+        model_type = "elastic";
+    end
 
     % fprintf("Testing model...\n")
-    win_spec = zeros(patients_tested,1);
-    win_sens = zeros(patients_tested,1);
+    win_spec = zeros(patients_tested,length(classes));
+    win_sens = zeros(patients_tested,length(classes));
     win_accy = zeros(patients_tested,1);
-    pat_spec = zeros(patients_tested,1);
-    pat_sens = zeros(patients_tested,1);
+    pat_spec = zeros(patients_tested,length(classes));
+    pat_sens = zeros(patients_tested,length(classes));
     pat_accy = zeros(patients_tested,1);
     for patient_sel = 1:patients_tested
 
@@ -157,86 +149,121 @@ if run_flag
         try
             % Try to load file
             models = load((fullfile(load_path, sprintf("model_%s.mat",paramHash_model))));
-            fit = models.fit;
             beta = models.beta;
+            theta = models.theta;
 
-            if length(models.fit) < iter
-                % Find best fit for data using training data
-                [beta_lasso,fit(iter)] = lassoglm(fwindows_train_block,Yi_train_vec,'binomial','NumLambda',10,'CV',cv_spec,'Alpha',alpha,'MaxIter',max_iterations);
+            if size(models.beta,2) < iter
+                switch model_type
+                    case "elastic"
+                        % Find best fit for data using training data
+                        [beta_lasso,fit] = lassoglm(fwindows_train_block,Yi_train_vec,'binomial','NumLambda',10,'CV',cv_spec,'Alpha',alpha,'MaxIter',max_iterations);
 
-                % Add first element of beta
-                beta_0 = fit.Intercept;
-                indx = fit.IndexMinDeviance;
-                beta(:,iter) = [beta_0(indx);beta_lasso(:,indx)];
+                        % Add first element of beta
+                        beta_0 = fit.Intercept;
+                        indx = fit.IndexMinDeviance;
+                        beta(:,iter) = [beta_0(indx);beta_lasso(:,indx)];
+                        theta(1,iter) = NaN;
+                    case "ordinal"
+                        % Train model
+                        model = fitOrdinalRegression(fwindows_train_block,Yi_train_vec+1,length(unique(Yi)));
+                        beta(:,iter) = model.beta;
+                        theta(:,iter) = model.theta;
+                end
 
                 % Save data file
-                save((fullfile(load_path, sprintf("model_%s.mat",paramHash_model))),"beta","fit");
+                save((fullfile(load_path, sprintf("model_%s.mat",paramHash_model))),"beta","theta");
                 beta = beta(:,iter);
             else
                 beta = models.beta(:,iter);
+                theta = theta(:,iter);
             end
 
         catch
-            % Find best fit for data using training data
-            [beta_lasso,fit] = lassoglm(fwindows_train_block,Yi_train_vec,'binomial','NumLambda',10,'CV',cv_spec,'Alpha',alpha,'MaxIter',max_iterations);
+            switch model_type
+                case "elastic"
+                    % Find best fit for data using training data
+                    [beta_lasso,fit] = lassoglm(fwindows_train_block,Yi_train_vec,'binomial','NumLambda',10,'CV',cv_spec,'Alpha',alpha,'MaxIter',max_iterations);
 
-            % Add first element of beta
-            beta_0 = fit.Intercept;
-            indx = fit.IndexMinDeviance;
-            beta = [beta_0(indx);beta_lasso(:,indx)];
+                    % Add first element of beta
+                    beta_0 = fit.Intercept;
+                    indx = fit.IndexMinDeviance;
+                    beta = [beta_0(indx);beta_lasso(:,indx)];
+                    theta = NaN;
+                case "ordinal"
+                    % Train model
+                    model = ordinalglm(fwindows_train_block,Yi_train_vec+1,length(unique(Yi)));
+                    beta = model.beta;
+                    theta = model.theta;
+            end
 
             % Save data file
-            save((fullfile(load_path, sprintf("model_%s.mat",paramHash_model))),"beta","fit");
+            save((fullfile(load_path, sprintf("model_%s.mat",paramHash_model))),"beta","theta");
         end
 
-        % Get probability Y=1
-        test_probs = pvp_regression(fwindows_test_block,beta);
-        Yhat_test_vec = (test_probs > probability_cutoff) * 1;
+        % Get window-level probabilities
+        test_probs = regression_test(model_type,fwindows_test_block,beta,theta);
+        switch model_type
+            case "elastic"
+                Yhat_test_vec = (test_probs > probability_cutoff) * 1;
 
-        % Count all/true positives/negatives (window level)
-        num_pos = sum(Yhat_test_vec);
-        num_neg = length(Yhat_test_vec) - num_pos;
-        true_pos = sum(Yi_test_vec & Yhat_test_vec);
-        true_neg = sum(~Yi_test_vec & ~Yhat_test_vec);
+            case "ordinal"
+                [~,Yhat_test_vec] = max(test_probs,[],2);
+                Yhat_test_vec = Yhat_test_vec - 1;
+        end
 
-        % Create sensitivity and specificity measurements (window level)
-        win_spec(patient_sel) = true_pos / num_pos;
-        win_sens(patient_sel) = true_neg / num_neg;
-        win_accy(patient_sel) = (true_pos + true_neg) / (num_pos + num_neg);
+        % Get accuracy measurements
+        win_conmat = confusionmat(Yi_test_vec,Yhat_test_vec, 'Order', classes-1);
+        win_accy(patient_sel) = sum(diag(win_conmat)) ./ sum(win_conmat(:));
+        win_sens(patient_sel,:) = diag(win_conmat).' ./ (sum(win_conmat, 2) + eps).';
+        for j = 1:length(classes)
+            TP = win_conmat(j,j);
+            FN = sum(win_conmat(j,:)) - TP;
+            FP = sum(win_conmat(:,j)) - TP;
+            TN = sum(win_conmat(:)) - TP - FN - FP;
+            win_spec(patient_sel,j) = TN / (TN + FP);
+        end
 
-        % Create sensitivity and specificity measurements
+        % Get patient-level probabilities
         if single_patient_testing
             % Patient-based testing
-            pat_spec(patient_sel) = win_spec(patient_sel) >= 0.5;
-            pat_sens(patient_sel) = win_sens(patient_sel) >= 0.5;
-            pat_accy(patient_sel) = win_accy(patient_sel) >= 0.5;
+            pat_spec(patient_sel,:) = win_spec(patient_sel,:) >= 0.5;
+            pat_sens(patient_sel,:) = win_sens(patient_sel,:) >= 0.5;
+            pat_accy(patient_sel,:) = win_accy(patient_sel,:) >= 0.5;
         else
             % Percentage-based testing
             Yi_hat = zeros(length(data_master),1);
             for k = 1:length(data_master)
                 patient_indices = test_locations_block == k;
-                patient_yhat = mean(Yhat_test_vec(patient_indices));
-                Yi_hat(k) = patient_yhat > probability_cutoff;
+                switch model_type
+                    case "elastic"
+                        patient_yhat = mean(Yhat_test_vec(patient_indices));
+                        Yi_hat(k) = patient_yhat > probability_cutoff;
+                    case "ordinal"
+                        Yi_hat(k) = mode(Yhat_test_vec(patient_indices));
+                end
             end
 
-            % Count all/true positives/negatives (patient level)
-            num_pos = sum(Yi_hat);
-            num_neg = length(Yi_hat) - num_pos;
-            true_pos = sum(Yi & Yi_hat);
-            true_neg = sum(~Yi & ~Yi_hat);
-
-            % Create sensitivity and specificity measurements (patient level)
-            pat_spec(patient_sel) = true_pos / num_pos;
-            pat_sens(patient_sel) = true_neg / num_neg;
-            pat_accy(patient_sel) = (true_pos + true_neg) / (num_pos + num_neg);
+            % Get accuracy measurements
+            pat_conmat = confusionmat(Yi,Yi_hat, 'Order', classes-1);
+            pat_accy(patient_sel) = sum(diag(pat_conmat)) ./ sum(pat_conmat(:));
+            pat_sens(patient_sel,:) = diag(pat_conmat).' ./ (sum(pat_conmat, 2) + eps).';
+            for j = 1:length(classes)
+                TP = pat_conmat(j,j);
+                FN = sum(pat_conmat(j,:)) - TP;
+                FP = sum(pat_conmat(:,j)) - TP;
+                TN = sum(pat_conmat(:)) - TP - FN - FP;
+                pat_spec(patient_sel,j) = TN / (TN + FP);
+            end
         end
 
     end
 
     % Respecify variables
+    metrics_add.win.conmat = win_conmat;
     metrics_add.win.spec = win_spec;
     metrics_add.win.sens = win_sens;
     metrics_add.win.accy = win_accy;
+    metrics_add.pat.conmat = pat_conmat;
     metrics_add.pat.spec = pat_spec;
     metrics_add.pat.sens = pat_sens;
     metrics_add.pat.accy = pat_accy;

@@ -1,4 +1,4 @@
-function gen_roc(save_data,conn,table_name,default_parameters,configs,figure_data)
+function gen_roc(save_data,conn,table_name,result_parameters_hashes,line_configs,figure_data)
 
 % Figure settings
 figures_folder = 'Figures';
@@ -36,44 +36,21 @@ switch save_data.priority
 end
 
 % Import parameters
-level_view = figure_data.level_view;
 data_type = figure_data.data_type;
-primary_var = figure_data.primary_var;
 primary_vals = figure_data.primary_vals;
-% title_vars = figure_data.title_vars;
 legend_vec = figure_data.legend_vec;
 line_styles = figure_data.line_styles;
 line_colors = figure_data.line_colors;
 save_sel = figure_data.save_sel;
 
-
 % SIM LOOP
-var_names = fieldnames(default_parameters);
-spec_mat = zeros(length(primary_vals),length(configs));
-sens_mat = zeros(length(primary_vals),length(configs));
+spec_mat = zeros(length(primary_vals),length(line_configs));
+sens_mat = zeros(length(primary_vals),length(line_configs));
 for primvar_sel = 1:length(primary_vals)
+    for sel = 1:length(line_configs)
 
-    % Set primary variable
-    primval_sel = primary_vals(primvar_sel);
-
-    for sel = 1:length(configs)
-
-        % Populate parameters from configs or default_parameters
-        params_inst = struct();
-        for var_sel = 1:length(var_names)
-            var_name = var_names{var_sel};
-            if isfield(configs{sel}, var_name)
-                value = configs{sel}.(var_name);
-            elseif ~strcmp(var_name, primary_var)
-                value = default_parameters.(var_name);
-            else
-                value = primval_sel;
-            end
-            params_inst.(var_name) = value;
-        end
-
-        % Load data from DB
-        [~,paramHash] = jsonencode_sorted(params_inst);
+        % Load data from parameter hash
+        paramHash = result_parameters_hashes(1,sel);
         sim_result = T(string(T.param_hash) == paramHash, :);
 
         % Select data to extract
@@ -99,7 +76,6 @@ for primvar_sel = 1:length(primary_vals)
         sens_mat(primvar_sel,sel) = mean(sens_vals(~isnan(sens_vals)));
 
     end
-
 end
 
 % Create folders if they don't exist
@@ -118,7 +94,7 @@ end
 % Display figure
 figure(1)
 hold on
-for i = 1:length(configs)
+for i = 1:length(line_configs)
     if sum(1 - spec_mat(:,i)) == 0 && sum(sens_mat(:,i)) == 1 * length(primary_vals)
         x = [0 0 1];
         y = [0 1 1];

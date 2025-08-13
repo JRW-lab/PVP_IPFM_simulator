@@ -7,12 +7,14 @@ function local_write(excel_path,parameters,new_frames,metrics_add)
 try
     T = readtable(excel_path, 'TextType', 'string');
     sim_result = T(T.param_hash == paramHash, :);
+    row_idx = find(T.param_hash == paramHash);
+    iteration = size(T(row_idx, :),1) + 1;
 catch
     T = table;
     sim_result = [];
+    row_idx = [];
+    iteration = 1;
 end
-row_idx = find(T.param_hash == paramHash);
-iteration = size(T(row_idx, :),1) + 1;
 
 if ~isempty(sim_result) % Overwrite row in DB
 
