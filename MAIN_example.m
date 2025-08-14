@@ -29,7 +29,7 @@ save_data.excel_path = fullfile(save_data.excel_folder,save_data.excel_name + ".
 
 % Profile names (for profile selector)
 profile_names = {
-    "Pilot pig - 0/5/10/15/20/25% TBV Loss (%-based)"
+    "Human - Resuscitated/Hypovolemic (%-based)"
     };
 [profile_sel,num_frames] = profile_select(profile_names,true);
 data_view = input(" > Select view: ","s");
@@ -259,25 +259,24 @@ for primvar_sel = 1:prvr_len
         % Set configuration
         config_sel = line_configs{conf_sel};
 
+        % Create overall parameters
+        model_parameters_inst = model_parameters;
+        model_parameters_inst.(primary_var) = primvar_val;
+        result_parameters = mergestructs(data_defaults,model_parameters_inst);
+
         % Overwrite settings with config setting
-        data_inst = data_defaults;
         config_fields = fields(config_sel);
         for i = 1:length(config_fields)
-            data_inst.(config_fields{i}) = config_sel.(config_fields{i});
+            result_parameters.(config_fields{i}) = config_sel.(config_fields{i});
         end
 
         % Remove defaults that are being overwritten
         used_labels = unique(string(cellfun(@(x) fields(x), data_groups, "UniformOutput", false)));
         for i = 1:length(used_labels)
-            data_inst.labels.(used_labels(i)) = NaN;
+            result_parameters.labels.(used_labels(i)) = NaN;
         end
 
-        % Overwrite model parameter's primary variable
-        model_parameters_inst = model_parameters;
-        model_parameters_inst.(primary_var) = primvar_val;
-
         % Generate result hash
-        result_parameters = mergestructs(data_inst,model_parameters_inst);
         result_parameters.data_groups = data_groups;
         [~,result_params_hash] = jsonencode_sorted(result_parameters);
 

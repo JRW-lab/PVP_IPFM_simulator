@@ -3,6 +3,7 @@ function gen_figure_v2(save_data,conn,table_name,result_parameters_hashes,line_c
 % Settings
 render_title = false;
 figures_folder = 'Figures';
+loc = "northwest";
 line_val = 2;
 mark_val = 10;
 font_val = 16;
@@ -125,7 +126,6 @@ end
 
 ylabel("Model Accuracy")
 % loc = "southwest";
-loc = "southeast";
 grid on
 ylim(ylim_vec)
 xlabel(xlabel_name)

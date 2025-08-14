@@ -52,7 +52,10 @@ catch
             flag = true;
             for k = 1:length(label_fields)
 
-                label_inst = lookup_table.(label_fields{k}){i};
+                label_inst = lookup_table.(label_fields{k})(i);
+                if iscell(label_inst)
+                    label_inst = label_inst{1};
+                end
 
                 % If data does not match requirement, do not load
                 if ~ismember(label_inst,labels_sel.(label_fields{k})) || ismember(lookup_table.subject_number(i),exclude_patients) || ~isequal(lookup_table.signal_type{i}, signal_type)
