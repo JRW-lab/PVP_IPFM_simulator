@@ -9,7 +9,7 @@ To use this code, you must run it in MATLAB 2024b or higher. The parallelization
 ## Instructions
 The code included here is lengthy and may be confusing so here is an overview of how it works:
 
-1. MAIN_model_training.m includes the configurations and when run, the user selects from a series of options.
+1. MAIN_simulator_example.m includes the configurations and when run, the user selects from a series of options.
 2. If a sufficient number of frames is not already simulated, model_fun_v3.m is run for a specific system with a set of defined parameters.
 4. Step 2 is repeated until all configurations have the sufficient number of frames for figure rendering.
 5. gen_figure_v2.m, gen_roc.m and gen_table.m are run for generating figures, ROC curves and tables of data, respectively.
